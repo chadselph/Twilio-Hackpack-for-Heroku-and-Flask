@@ -1,9 +1,10 @@
 import os
 
 from flask import Flask
+from flask import current_app
 from flask import render_template
-from flask import url_for
 from flask import request
+from flask import url_for
 
 from twilio import twiml
 from twilio.util import TwilioCapability
@@ -16,22 +17,38 @@ app = Flask(__name__, static_url_path='/static')
 app.config.from_pyfile('local_settings.py')
 
 
+# Decorator do views can return a twiml.Response object
+def twiml_response(func):
+    def inner(*args, **kwargs):
+        raw_resp = func(*args, **kwargs)
+        if isinstance(raw_resp, twiml.Response):
+            resp = current_app.make_response(str(raw_resp))
+            resp.headers['Content-Type'] = 'text/xml'
+            return resp
+        else:
+            return raw_resp
+    inner.__name__ = func.__name__
+    return inner
+
+
 # Voice Request URL
 @app.route('/voice', methods=['POST'])
+@twiml_response
 def voice():
     response = twiml.Response()
-    response.say("Congratulations! You deployed the Twilio Hackpack" \
+    response.say("Congratulations! You deployed the Twilio Hackpack"
             " for Heroku and Flask.")
-    return str(response)
+    return response
 
 
 # SMS Request URL
 @app.route('/sms', methods=['POST'])
+@twiml_response
 def sms():
     response = twiml.Response()
-    response.sms("Congratulation! You deployed the Twilio Hackpack" \
+    response.sms("Congratulation! You deployed the Twilio Hackpack"
             " for Heroku and Flask.")
-    return str(response)
+    return response
 
 
 # Twilio Client demo template
